@@ -1,16 +1,17 @@
 #!/bin/bash
 #
-# This script is run on the parent EC2 instance.  It sets up TCP forwarders
-# that facilitate communication with the Nitro enclave.
+# This script is run on the parent EC2 instance.  It sets up tools that we need
+# to facilitate communication with the Nitro enclave.
 
 source config.sh
 
-echo "[+] Killing existing socat instances."
-killall socat
+echo "[+] Killing existing VIProxy and SOCKS proxy instances."
+killall viproxy socksproxy
 
-echo "[+] Setting up vsock/inet forwarders for CID ${enclave_cid}."
-# Note that we need at least socat in version 1.7.4 because that's where VSOCK
-# support was introduced.
-socat "TCP4-LISTEN:${incoming_port},nodelay,fork"      "VSOCK-CONNECT:${enclave_cid}:${incoming_port}" &
-socat "TCP4-LISTEN:${incoming_acme_port},nodelay,fork" "VSOCK-CONNECT:${}:${incoming_acme_port}" &
-socat "VSOCK-LISTEN:${outgoing_port},fork"             "TCP:localhost:${outgoing_port},nodelay" &
+echo "[+] Setting up VIProxy as AF_INET <-> AF_VSOCK forwarder."
+export IN_ADDRS="0.0.0.0:${incoming_port},0.0.0.0:${incoming_acme_port},${host_cid}:${incoming_acme_port}"
+export OUT_ADDRS="${enclave_cid}:${incoming_port},${enclave_cid}:${incoming_acme_port},localhost:${outgoing_port}"
+viproxy &
+
+echo "[+] Setting up SOCKSv5 proxy."
+socksproxy -addr ":$outgoing_port" &
