@@ -14,3 +14,6 @@ outgoing_port=1080
 
 # The enclave's CID, which is effectively an IP address in AF_VSOCK.
 enclave_cid=4
+
+# The CID of the parent (from the enclave's point of view) is always 3.
+host_cid=3
